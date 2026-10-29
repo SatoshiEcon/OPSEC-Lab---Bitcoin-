@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src data:; connect-src 'none'; form-action 'none';">
+<title>OPSEC Lab</title>
+<style>
+:root,:root[data-theme="dark"]{--bg:#0d1117;--panel:#161b22;--line:#30363d;--text:#e6edf3;--muted:#8b949e;--accent:#f7931a;--good:#3fb950;--bad:#ff7b72;--warn:#d29922;--btntext:#000}
+:root[data-theme="light"]{--bg:#f6f8fa;--panel:#ffffff;--line:#d0d7de;--text:#1f2328;--muted:#57606a;--accent:#b35c00;--good:#1a7f37;--bad:#cf222e;--warn:#9a6700;--btntext:#fff}
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;background:var(--bg);color:var(--text);line-height:1.65}
+.wrap{max-width:840px;margin:0 auto;padding:16px}
+header{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;border-bottom:1px solid var(--line);padding-bottom:12px}
+h1{color:var(--accent);margin:0;font-size:1.5rem}
+h2{color:var(--accent);margin-top:0}
+h3{margin:22px 0 4px}
+.hright{display:flex;align-items:center;gap:12px}
+.progress{font-size:.85rem;color:var(--muted)}
+#theme{background:transparent;border:1px solid var(--line);color:var(--text);border-radius:6px;padding:4px 10px;cursor:pointer;font-size:.85rem}
+nav{display:flex;flex-wrap:wrap;gap:6px;margin:16px 0}
+nav button{background:var(--panel);color:var(--text);border:1px solid var(--line);padding:6px 10px;border-radius:6px;cursor:pointer;font-size:.82rem}
+nav button.active{border-color:var(--accent);color:var(--accent)}
+nav button.done::after{content:" \2713";color:var(--good)}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:20px;margin-bottom:16px}
+.why{border-left:4px solid var(--accent);padding:10px 14px;background:rgba(247,147,26,.08);border-radius:6px;margin:14px 0}
+.warn{border-left:4px solid var(--warn);padding:10px 14px;background:rgba(210,153,34,.1);border-radius:6px;margin:14px 0}
+.assume{border-left:4px solid var(--bad);padding:10px 14px;background:rgba(255,123,114,.08);border-radius:6px;margin:14px 0}
+.extra{border-left:4px solid var(--good);padding:10px 14px;background:rgba(63,185,80,.08);border-radius:6px;margin:14px 0}
+.case{border:1px solid var(--line);padding:12px 14px;border-radius:8px;margin:14px 0;background:var(--bg)}
+.case b.tag{color:var(--bad);font-size:.8rem;letter-spacing:.05em;text-transform:uppercase}
+.q{border-top:1px solid var(--line);padding-top:14px;margin-top:18px}
+.opt{display:block;width:100%;text-align:left;background:var(--bg);color:var(--text);border:1px solid var(--line);padding:10px 12px;border-radius:8px;margin:6px 0;cursor:pointer;font-size:.95rem;font-family:inherit}
+.opt:hover:not(:disabled){border-color:var(--accent)}
+.opt.right{border-color:var(--good);background:rgba(63,185,80,.12)}
+.opt.wrong{border-color:var(--bad);background:rgba(255,123,114,.12)}
+.opt:disabled{cursor:default}
+.fb{font-size:.92rem;color:var(--muted);margin-top:6px}
+.btn{background:var(--accent);color:var(--btntext);border:0;padding:10px 18px;border-radius:8px;font-weight:600;cursor:pointer;font-family:inherit}
+.btn.ghost{background:transparent;color:var(--text);border:1px solid var(--line)}
+.btn:disabled{opacity:.4;cursor:default}
+.row{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-top:18px}
+input[type=password],input[type=text]{width:100%;padding:12px;font-size:1rem;border-radius:8px;border:1px solid var(--line);background:var(--bg);color:var(--text);font-family:ui-monospace,Menlo,monospace}
+table{width:100%;border-collapse:collapse;font-size:.9rem;margin-top:10px}
+td,th{border-bottom:1px solid var(--line);padding:7px 6px;text-align:left;vertical-align:top}
+th{color:var(--muted);font-weight:600}
+.meter{height:10px;background:var(--line);border-radius:5px;overflow:hidden;margin:10px 0}
+.meter div{height:100%;width:0;transition:width .2s}
+.score{font-size:2rem;font-weight:700}
+ul,ol{padding-left:22px}
+li{margin:4px 0}
+code{font-family:ui-monospace,Menlo,monospace;background:var(--bg);border:1px solid var(--line);border-radius:4px;padding:1px 5px;font-size:.88em}
+.small{font-size:.85rem;color:var(--muted)}
+@media (max-width:520px){.panel{padding:16px}table{font-size:.82rem}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <h1>OPSEC Lab</h1>
+  <div class="hright"><div class="progress" id="prog"></div><button id="theme">Light</button></div>
+</header>
+<nav id="nav"></nav>
+<main id="main"></main>
+</div>
+
+<script>
+// =====================================================================
+// CONTENT
+// Each module: t = nav title, html = lesson, qs = questions
+// Question: q = text, o = options, a = index of correct option in o, f = explanation
+// Options are shuffled on screen, so write them in any order.
+// =====================================================================
+const M = [
+{
+ t:"0. Start Here",
+ html:`
+<h2>Why This Lab Exists</h2>
+<p>When you hold your own Bitcoin, you are your own bank. There is no fraud department, no reset button, no insurance, and no one to call. That is the whole point of Bitcoin, and it is also the whole risk.</p>
+<p>This lab takes you from zero, no hardware wallet and no idea what a seed phrase is, to the point where you can set one up and protect it properly. It explains <b>why</b> each step matters, not just what to do. Setting up the device is the easy part. Understanding what you are defending against is the real work.</p>
+<p>It assumes you know what Bitcoin is in general, but you don't handle it day to day. You'll answer questions as you go. Some you'll get wrong. That's how it sticks.</p>
+<div class="assume"><b>This lab starts from these assumptions, because history shows they are realistic:</b>
+<ul>
+<li><b>Mass surveillance is real.</b> The Snowden documents exposed programs like PRISM collecting data at enormous scale. WikiLeaks and other leaks showed government tools for compromising phones, computers and smart TVs.</li>
+<li><b>Phones can be taken over silently.</b> Spyware like Pegasus can turn on the microphone and both cameras without the owner knowing.</li>
+<li><b>Connected devices can listen and watch.</b> Smart TVs, speakers, doorbells and cameras.</li>
+<li><b>A phone that looks off may not be fully off.</b></li>
+<li><b>Your data will leak.</b> Assume any company holding your name, email or address will lose it in a breach eventually.</li>
+<li><b>The supply chain may be compromised.</b> Whatever device you buy, assume it could have been tampered with before it reached you.</li>
+<li><b>Firmware can be flawed.</b> Even a respected device can generate weak keys, as a major 2026 incident proved (Module 8).</li>
+</ul></div>
+<p>You don't need to believe all of this is happening to you right now. You need to set things up so it doesn't matter if it is.</p>
+<div class="warn"><b>This page works fully offline.</b> It makes no network connections. You can download it and open it with your internet turned off. Even so, never type your real seed words or real passphrase into this page or any computer.</div>`,
+ qs:[
+  {q:"When you hold your own Bitcoin, who is responsible if it's lost or stolen?",o:["The wallet manufacturer","You, and only you","Your bank","The Bitcoin network"],a:1,f:"There's no one to reverse a transaction or restore lost keys. That's the trade for having no one able to freeze or seize your money."},
+  {q:"Why does this lab assume the device you receive might be tampered with?",o:["Because every manufacturer is dishonest","Because devices pass through many hands between factory and door","Because hardware wallets are illegal","Because it's required by law"],a:1,f:"Factories, warehouses, couriers and resellers are all points where a device could be swapped or modified. You plan for it instead of hoping."}
+ ]
+},
+{
+ t:"1. Your Own Bank",
+ html:`
+<h2>Being Your Own Bank</h2>
+<p>Banks don't keep money safe by luck. They use layers: vaults, separate keys held by different people, offsite backups, audits, background checks and staff who don't talk about what's in the vault. When you self-custody, you take on that job. The good news is you can get close to bank-grade security for very little money.</p>
+<table>
+<tr><th>What a bank does</th><th>Your version</th><th>Module</th></tr>
+<tr><td>Keeps money in a vault, off the street</td><td>Keys stay inside a hardware wallet, never on an internet-connected device</td><td>3</td></tr>
+<tr><td>Secure transport, tamper seals, chain of custody</td><td>Buy direct, inspect packaging, verify the device and firmware</td><td>6, 9</td></tr>
+<tr><td>Vault doors built for fire and force</td><td>Seed stamped in stainless steel</td><td>9</td></tr>
+<tr><td>Offsite backups</td><td>Seed backup stored somewhere other than the device</td><td>9</td></tr>
+<tr><td>Dual control: two people, two keys</td><td>Seed and passphrase stored in different places</td><td>10</td></tr>
+<tr><td>Staff discretion, no talking about the vault</td><td>You don't tell anyone what you hold</td><td>5</td></tr>
+<tr><td>Audits and reconciliation</td><td>Test restores, checking every address on the device screen</td><td>6, 9</td></tr>
+<tr><td>Disaster recovery planning</td><td>An inheritance plan someone you trust can follow</td><td>11</td></tr>
+</table>
+<h3>Why not just leave it on an exchange?</h3>
+<p>When your Bitcoin sits on an exchange, you don't hold Bitcoin. You hold a promise from a company. The saying in Bitcoin is <b>"not your keys, not your coins."</b> History backs it up:</p>
+<ul>
+<li><b>Mt. Gox (2014):</b> once the largest Bitcoin exchange, it collapsed after losing hundreds of thousands of customers' Bitcoin. Customers waited about a decade for partial repayment.</li>
+<li><b>FTX (2022):</b> a major exchange collapsed after customer funds were misused. Withdrawals froze overnight.</li>
+</ul>
+<p>Banks have their own versions: in 2013, Cyprus seized a portion of large bank deposits to rescue its banks, and capital controls limited how much people could withdraw. Whoever holds your money controls your money.</p>`,
+ qs:[
+  {q:"What does 'not your keys, not your coins' mean?",o:["Exchanges charge high fees","If someone else holds the keys, they control the Bitcoin","Keys expire after a year","You need two keys for every coin"],a:1,f:"Bitcoin on an exchange is a balance the company owes you. If it freezes or fails, you may never get it back."},
+  {q:"A bank stores backups offsite. What's your equivalent?",o:["Keeping the seed in the same box as the device","Storing the seed backup in a separate location from the device","Emailing the seed to yourself","Taking a photo of the seed"],a:1,f:"If one place burns, floods or gets robbed, the other survives. Never keep everything in one spot."},
+  {q:"Which of these is the closest match to a bank's dual control, where two people hold separate keys?",o:["Using a long PIN","Storing your seed and your passphrase in different places","Using two exchanges","Writing the seed twice on one card"],a:1,f:"A thief who finds one still can't spend without the other."}
+ ]
+},
+{
+ t:"2. The Cypherpunk Case",
+ html:`
+<h2>Why Personal Responsibility</h2>
+<p>Bitcoin didn't come from nowhere. It came out of the cypherpunk movement, a group of cryptographers and privacy activists who started organizing in the early 1990s.</p>
+<p>In 1993, Eric Hughes wrote <i>A Cypherpunk's Manifesto</i>. His argument: privacy is necessary for a free society in the digital age, and people can't expect governments or large companies to hand it to them. They have to build and defend it themselves, with code and cryptography. Cypherpunks build tools rather than ask permission.</p>
+<p>In 2008, Satoshi Nakamoto published the Bitcoin whitepaper. Its core problem was trust: online payments depended on financial institutions as middlemen, and Bitcoin replaced that trust with cryptographic proof. The very first Bitcoin block, mined in January 2009, carried a newspaper headline about a government preparing a second bailout for banks. The message was clear.</p>
+<div class="why"><b>The trade you're making:</b>
+<ul>
+<li><b>Freedom:</b> no one can freeze your account, block a payment, inflate away your savings by printing more Bitcoin, or seize funds without your keys.</li>
+<li><b>Responsibility:</b> no one can rescue you. Lose your keys and the coins are gone. Hand them to a scammer and they're gone. There is no appeal.</li>
+</ul>
+These come together. You can't have the first without accepting the second. Self-custody only makes sense if you take the security seriously, and that's what the rest of this lab is for.</div>`,
+ qs:[
+  {q:"What problem did the Bitcoin whitepaper set out to solve?",o:["Slow internet speeds","Needing to trust financial institutions as middlemen","High electricity costs","Making payments anonymous by law"],a:1,f:"Bitcoin replaces trust in a middleman with cryptographic proof anyone can verify."},
+  {q:"What is the cost of nobody being able to freeze or seize your Bitcoin?",o:["Higher fees","Nobody can rescue you if you lose your keys or get scammed","You have to pay taxes twice","Transactions take weeks"],a:1,f:"Freedom and responsibility come as a pair. That's why security is not optional."},
+  {q:"What was the cypherpunk view on getting privacy?",o:["Ask governments for better privacy laws","Trust large companies to protect it","Build and defend it yourself with cryptography","Privacy isn't important"],a:2,f:"Their position was that privacy had to be built by individuals, not granted by institutions."}
+ ]
+},
+{
+ t:"3. The Basics",
+ html:`
+<h2>Keys, Seeds and Hardware Wallets</h2>
+<h3>Private key</h3>
+<p>Your Bitcoin isn't stored in a device. It lives on the Bitcoin network. What you hold is a <b>private key</b>: a huge secret number that proves you're allowed to spend those coins. Whoever has the key has the Bitcoin. That's all there is to it.</p>
+<h3>Seed phrase</h3>
+<p>A <b>seed phrase</b> (also called a recovery phrase or mnemonic) is your private keys written as 12 or 24 ordinary words, chosen from a standard list of 2,048 words. From those words, any compatible wallet can regenerate all your keys and every address you'll ever use.</p>
+<ul>
+<li>The seed phrase <b>is</b> your money. Anyone who sees it can take everything.</li>
+<li>If your device breaks or is lost, the seed phrase restores everything on a new one.</li>
+<li>If you lose the seed phrase and the device, the coins are gone for good.</li>
+</ul>
+<h3>Where seed phrases came from: BIP39</h3>
+<p>Seed phrases are an open standard called <b>BIP39</b> (Bitcoin Improvement Proposal 39). It was proposed in 2013 by Marek Palatinus, Pavol Rusnák, Aaron Voisine and Sean Bowe. Before it, backing up a wallet meant saving long strings of random characters or wallet files, which was easy to get wrong. BIP39 turned that randomness into a short list of words from a fixed list of 2,048, with a built-in checksum so most typos get caught.</p>
+<p>It builds on <b>BIP32</b> (2012), the standard that lets one seed generate every key and address in a wallet. Together they're why a single backup covers everything, and why a BIP39 seed made on one brand of wallet can be restored on another. You're never locked in to the company that sold you the device.</p>
+<h3>What makes a wallet trustworthy</h3>
+<p>A wallet you can trust gives you a standard seed phrase that you see, you write down and you control, and that restores on any compatible wallet. Be wary of any device or app that never shows you a seed, hides your keys from you, or only lets you recover through the company's own service or hardware. If you can't rebuild your access without that company, you don't fully own your Bitcoin. If they go out of business or get compromised, your access goes with them.</p>
+<h3>Hardware wallet</h3>
+<p>A <b>hardware wallet</b> is a small dedicated device that creates your keys and keeps them inside. When you send Bitcoin, your computer or phone prepares the transaction, the hardware wallet signs it internally, and only the signature comes out. The keys never touch an internet-connected device.</p>
+<p>Wallets that live on a phone or computer are called <b>hot wallets</b>. They're fine for small spending money, but the device they live on is exposed to the internet, malware and spyware. A hardware wallet keeps your keys <b>cold</b>, offline.</p>
+<h3>Other terms you'll see</h3>
+<ul>
+<li><b>PIN:</b> unlocks the device itself. It protects the device if stolen, not the seed phrase.</li>
+<li><b>Passphrase:</b> an optional extra secret added to your seed that creates a completely separate wallet (Module 10).</li>
+<li><b>Address:</b> where people send you Bitcoin. Safe to share, but sharing reveals your balance on that address.</li>
+<li><b>Firmware:</b> the software running inside the hardware wallet.</li>
+</ul>`,
+ qs:[
+  {q:"Where is your Bitcoin actually stored?",o:["Inside the hardware wallet","On the Bitcoin network. You hold the key that controls it","On the manufacturer's servers","On your phone"],a:1,f:"The device holds keys, not coins. That's why a seed phrase can restore everything on a brand new device."},
+  {q:"Your hardware wallet falls in a lake. You have your seed phrase. What happens?",o:["Your Bitcoin is gone","You restore it all on a new device using the seed phrase","You contact support to recover it","You wait for the network to refund you"],a:1,f:"The seed phrase regenerates every key. The device is replaceable. The seed is not."},
+  {q:"Why does it matter that BIP39 is an open standard?",o:["It makes seeds shorter","Your seed can be restored on any compatible wallet, not just the brand that made it","It lets companies recover your seed for you","It makes Bitcoin anonymous"],a:1,f:"An open standard means no single company controls your access."},
+  {q:"A wallet never shows you a seed phrase and can only be recovered through its maker's service. Is that a good choice?",o:["Yes, it's simpler","Yes, the company keeps it safe","No: if you can't rebuild access without the company, you don't fully control your Bitcoin","Only for large amounts"],a:2,f:"You should be able to restore your wallet without anyone's permission or service."},
+  {q:"What does the PIN protect?",o:["The seed phrase backup","The device, if someone gets hold of it","Your exchange account","Your passphrase"],a:1,f:"A thief with your device still needs the PIN. A thief with your seed phrase doesn't need the device at all."},
+  {q:"Why is a hardware wallet safer than a wallet app on your phone?",o:["It holds more Bitcoin","Its keys never leave the device or touch the internet","It's cheaper","It doesn't need a seed phrase"],a:1,f:"Your phone runs many apps and connects to the internet constantly. The hardware wallet only signs."}
+ ]
+},
+{
+ t:"4. Thinking Like an Attacker",
+ html:`
+<h2>OPSEC and the Attacker's View</h2>
+<p>Operational security (OPSEC) started as a military process. It asks one question: <b>what could an adversary learn about me, and how could they use it?</b></p>
+<ol>
+<li><b>Identify critical information.</b> Your seed phrase, your passphrase, the fact that you own Bitcoin, roughly how much, and where you live.</li>
+<li><b>Identify threats.</b> Who might want it? Hackers, scammers, burglars, people you know, insiders at companies, governments.</li>
+<li><b>Find vulnerabilities.</b> Where could it leak? Your phone, email, mail, social media, conversations.</li>
+<li><b>Assess risk.</b> How likely is each, and how bad would it be?</li>
+<li><b>Apply countermeasures.</b> Then repeat, because new threats keep appearing.</li>
+</ol>
+<div class="why"><b>Why think like an attacker?</b> Defenders who only think about what they're protecting miss the gaps. Attackers look for the cheapest way in. If you plan for every attack vector you can imagine before it happens, you close the holes before someone finds them. Checking and verifying come after that, as tools for closing those holes.</div>
+<p>The key idea: small pieces of harmless-looking information add up. Your email from one breach, your home address from another, and an old social media post about Bitcoin together make a target with a front door.</p>
+<p>The rest of this lab walks through the attack vectors: <b>becoming known</b> (Module 5), <b>physical, firmware, phishing and malware</b> (Module 6), and <b>surveillance of your surroundings</b> (Module 7).</p>`,
+ qs:[
+  {q:"Support emails you saying your device is compromised and asks for your 24 words to migrate your funds. What do you do?",o:["Send the words, it's support","Send only the first 12","Ignore it. No legitimate company ever asks for a seed phrase","Reply and ask for their employee ID"],a:2,f:"No real company ever needs your seed phrase. Anyone asking for it is trying to steal from you."},
+  {q:"When planning your defenses, whose point of view should you take?",o:["The owner's","The attacker's","The manufacturer's","The exchange's"],a:1,f:"You find the holes by trying to break your own setup."},
+  {q:"Why is OPSEC a loop rather than a one-time task?",o:["It isn't, you do it once","Threats and your situation keep changing","Hardware wallets expire every year","Laws require annual reviews"],a:1,f:"New breaches, new scams and life changes like moving or a bigger stack all create new vulnerabilities."}
+ ]
+},
+{
+ t:"5. Becoming Known",
+ html:`
+<h2>When People Know You're the Bitcoin Person</h2>
+<p>The moment anyone connects your identity to Bitcoin, you become a target. Not because of what you've done, but because of what you might have. This is the attack vector most people never think about, and it can be the most dangerous.</p>
+<h3>How you get found</h3>
+<ul>
+<li><b>Customer data leaks.</b> In 2020, a major hardware wallet maker's customer database leaked, and names, phone numbers and home addresses of hundreds of thousands of buyers were posted online. Buying a hardware wallet told the world those people probably held Bitcoin.</li>
+<li><b>Exchange accounts.</b> Exchanges collect your ID, address and transaction history. Any breach exposes it.</li>
+<li><b>Talking.</b> Telling friends, family, coworkers or social media. People repeat things.</li>
+<li><b>On-chain links.</b> Withdrawing from an exchange to your wallet can link your identity to your addresses.</li>
+</ul>
+<h3>What comes next</h3>
+<ul>
+<li><b>Targeted phishing:</b> emails and texts that use your real name and order details to look legitimate.</li>
+<li><b>Fake devices by mail:</b> after the 2020 leak, some customers received tampered hardware wallets sent as "replacements."</li>
+<li><b>Wrench attacks:</b> named after the joke that it's easier to hit someone with a $5 wrench than to break their encryption. Home invasions, kidnappings and threats against Bitcoin holders and their families have risen as Bitcoin's price has climbed.</li>
+</ul>
+<div class="why"><b>Why this matters:</b> your encryption can be perfect and you can still lose everything to a person at your door. Privacy about what you hold is a security control, as real as the device itself.</div>
+<div class="extra"><b>Going further:</b>
+<ul>
+<li>Don't discuss your holdings, online or off. If asked, you "dabbled a while ago."</li>
+<li>Ship hardware to a non-home address or PO box, and pay privately if you can.</li>
+<li>Use a unique email address for anything Bitcoin-related.</li>
+<li>Use a passphrase decoy wallet (Module 10): a small amount behind the seed alone, the real funds behind the passphrase.</li>
+<li>For larger amounts, look into multisig: several keys in different locations, so no single key, place or person can move the funds.</li>
+</ul></div>`,
+ qs:[
+  {q:"What's a wrench attack?",o:["A hardware malfunction","Physically threatening someone to make them hand over their Bitcoin","A firmware exploit","A phishing technique"],a:1,f:"The cheapest attack doesn't touch your device at all. Privacy is the defense."},
+  {q:"Why was the 2020 hardware wallet customer leak so dangerous?",o:["It revealed people's seed phrases","It linked names and home addresses to people likely holding Bitcoin","It shut down the Bitcoin network","It deleted customer wallets"],a:1,f:"No seeds leaked, but it told criminals exactly who to target and where they lived."},
+  {q:"A hardware wallet you never ordered arrives as a free replacement. What do you do?",o:["Set it up, it's a free upgrade","Move your funds to it","Don't plug it in. Treat it as an attack","Give it to a friend"],a:2,f:"Attackers have mailed tampered devices to people on leaked customer lists. Unrequested hardware is hostile."},
+  {q:"Which is the best response when someone asks how much Bitcoin you have?",o:["Tell them the exact amount","Show them your wallet","Keep it vague, like you dabbled a while ago","Post your balance online"],a:2,f:"Every person who knows is one more way for the information to spread."}
+ ]
+},
+{
+ t:"6. Attack Vectors",
+ html:`
+<h2>Physical, Firmware, Phishing and Malware</h2>
+<h3>Physical and supply chain</h3>
+<p>A device can be swapped for a lookalike, opened and modified, or shipped with a seed phrase already printed on a card in the box. A pre-printed seed means someone else already has your keys. Every legitimate device creates a fresh seed during setup.</p>
+<h3>Firmware and updates</h3>
+<p>Firmware is the code inside the device. Flawed or malicious firmware can create a seed that looks random but can be predicted, leak keys, or show you a false address. A fake update from a fake website can install it. A predictable seed is as bad as one printed on a card: the attacker can recreate your keys without ever touching your device. This happened for real in 2026 (Module 8).</p>
+<h3>Phishing and scams</h3>
+<ul>
+<li>Fake emails and texts claiming your wallet is compromised.</li>
+<li>Fake websites, apps and browser extensions that look exactly like the real ones.</li>
+<li>Fake "support" accounts on social media that message you first.</li>
+<li>Any page or person asking you to type in your seed phrase.</li>
+</ul>
+<h3>Malware on your computer or phone</h3>
+<p>Malware can swap a Bitcoin address you copy for the attacker's address, show fake balances, or record your screen and keyboard. This is why the hardware wallet's own screen is the only one you trust.</p>
+<div class="why"><b>Why check addresses on the device:</b> your computer may be compromised, but the hardware wallet's screen is driven by the device itself. When you receive, confirm the address on the device matches the one you're sharing. When you send, confirm the destination and amount on the device before you approve.</div>
+<div class="extra"><b>Going further:</b>
+<ul>
+<li>Buy only from the manufacturer directly.</li>
+<li>Prefer devices with open-source firmware that others can review.</li>
+<li>Verify firmware files against the developer's published signatures or hashes before installing.</li>
+<li>Consider an air-gapped device that never connects by USB, only by QR code or microSD card.</li>
+<li>Bookmark the real manufacturer website and only ever use that bookmark.</li>
+</ul></div>`,
+ qs:[
+  {q:"Your new hardware wallet arrives with 24 words already printed on a card. What does that mean?",o:["The factory set it up for you","It's a scam: someone else already knows those keys","It's a backup copy to keep safe","Use it but add a PIN"],a:1,f:"A legitimate device always generates a new seed during setup. Never use a pre-printed one."},
+  {q:"Why is flawed firmware dangerous even if no one ever sees your seed phrase?",o:["It drains the battery","It can create a predictable seed an attacker can recreate","It makes the screen dim","It isn't dangerous"],a:1,f:"If the randomness is broken, the attacker can regenerate your keys from scratch."},
+  {q:"You copy a receive address on your computer. Where do you confirm it's correct?",o:["On the computer screen","In your email","On the hardware wallet's own screen","On a block explorer website"],a:2,f:"Malware can change what your computer shows. The device screen is the one that can be trusted."},
+  {q:"An email links you to download a firmware update. What's the safe move?",o:["Click the link and update","Forward it to a friend","Ignore the link and update only through the official app or bookmarked site","Reply asking if it's real"],a:2,f:"Fake updates are a common way to install malicious firmware. Go to the source yourself."}
+ ]
+},
+{
+ t:"7. Your Surroundings",
+ html:`
+<h2>Securing the Room</h2>
+<p>Anything with a microphone, camera or network connection could be recording. That includes phones, laptop webcams, smart TVs, smart speakers, doorbell and security cameras, baby monitors, smartwatches and cars.</p>
+<div class="why"><b>Why go this far:</b> the seed phrase is the one moment your money exists in plain view. If a single camera or microphone captures it, every other layer you've built is worthless.</div>
+<p>When you create or write down a seed phrase:</p>
+<ul>
+<li>Pick a room with no smart devices. Unplug the TV and speakers.</li>
+<li>Get your phone out of the room. Another room is good, out of the house is better. Don't rely on it being "off."</li>
+<li>Do the same with laptops, tablets, smartwatches and anything else with a microphone or camera. The hardware wallet should be the only electronic device in the room.</li>
+<li>Close the curtains. Windows and outdoor cameras can see paper.</li>
+<li>Don't read the words out loud.</li>
+<li>Never photograph, scan, type or "temporarily" save the seed anywhere digital. No notes apps, no cloud, no password manager, no email to yourself.</li>
+<li>Do it alone, without rushing, and tell no one who doesn't need to know.</li>
+<li>Treat your dice roll sheet like the seed itself. Once you're done, destroy it completely by burning or cross-cut shredding.</li>
+</ul>
+<h3>Faraday bags</h3>
+<p>A Faraday bag is a pouch lined with metal mesh or foil. It blocks radio signals, so a phone inside can't connect to cell towers, Wi-Fi, Bluetooth or GPS. It's named after Michael Faraday, who discovered in the 1830s that a conductive enclosure blocks electric fields.</p>
+<ul>
+<li><b>Test it:</b> put your phone inside, seal it, and call the phone from another one. If it rings, the bag doesn't work.</li>
+<li><b>Know the limit:</b> a bag stops the phone sending anything out while it's sealed. It doesn't stop a compromised phone recording audio to its own storage and uploading it later, once it's out of the bag. That's why distance matters more than the bag. Use the bag in addition to distance, not instead of it.</li>
+</ul>`,
+ qs:[
+  {q:"Is it safe to take a quick photo of your seed phrase and delete it straight after?",o:["Yes, if you delete it quickly","Yes, if the phone is encrypted","No: photos sync and back up, and the phone may be compromised","Only in airplane mode"],a:2,f:"Cloud sync, backups and spyware can capture it in seconds. Digital copies are a leading cause of stolen Bitcoin."},
+  {q:"Where should your phone be while you write down your seed phrase?",o:["In your pocket, switched off","Face down on the table","In another room or a Faraday bag far away","Recording, as proof"],a:2,f:"A phone that looks off may still listen. Distance is the only safe answer."}
+ ]
+},
+{
+ t:"8. Your Own Entropy",
+ html:`
+<h2>Creating Your Seed with Your Own Randomness</h2>
+<p><b>Entropy</b> means randomness. Your seed phrase is only as strong as the randomness used to create it. If that randomness is weak, an attacker can guess your seed without ever seeing it.</p>
+<p>Every hardware wallet has a random number generator. You can't see inside it, and you can't check it. So you add your own randomness that you <i>can</i> trust: physical dice.</p>
+<div class="case"><b class="tag">Real case: Coldcard, 2026</b>
+<p>Coldcard is a respected, security-focused hardware wallet. In July 2026, it was revealed that a firmware bug had weakened seed generation. A firmware change from March 2021 caused the devices to skip their hardware random number generator and fall back on a predictable software one. On older models, seed strength dropped to as low as roughly 40 bits, low enough to crack.</p>
+<p>Attackers regenerated affected private keys offline and drained funds without ever touching the devices. Researchers traced over 1,500 BTC stolen across several waves.</p>
+<p>Updating the firmware fixed new seeds but <b>could not fix seeds already created</b>. Those had to be moved to new seeds.</p>
+<p>Users who had added at least 50 private dice rolls were considered safe from the flaw, because their own randomness carried the security. Some of the earliest victims had added rolls, but too few.</p>
+<p><b>Coldcard fixed the flaw</b> in its July 2026 firmware releases (Mk2/Mk3 4.2.0 or later, Mk4/Mk5 5.6.0 or later, Q 1.5.0Q or later). Coldcard also publishes a method for checking your dice-only seed yourself, so you don't have to take the device's word for it: <a href="https://coldcard.com/docs/verifying-dice-roll-math/" target="_blank" rel="noopener noreferrer">Coldcard: Verifying Dice Roll Math</a>. If you own a Coldcard, check its <a href="https://coldcard.com/security/" target="_blank" rel="noopener noreferrer">security status page</a> to see whether your seed needs to be moved.</p></div>
+<div class="why"><b>The lesson:</b> a device that won't let you add your own entropy is an attack vector in itself, because you can never know what actually went into your seed. Adding enough of your own dice rolls means a broken generator can't hurt you.</div>
+<h3>How many rolls</h3>
+<table>
+<tr><th>Seed length</th><th>Strength</th><th>Six-sided dice rolls needed</th></tr>
+<tr><td>12 words</td><td>128 bits</td><td>at least 50</td></tr>
+<tr><td>24 words</td><td>256 bits</td><td>at least 99</td></tr>
+</table>
+<p class="small">Each fair roll adds about 2.58 bits of randomness. Rolling more than needed doesn't hurt.</p>
+<h3>Two ways devices use your dice</h3>
+<ul>
+<li><b>Mixed with device randomness.</b> Your rolls are combined with the device's own generator. If either is good, the seed is good, as long as the firmware actually uses your rolls. You are trusting the code to do that.</li>
+<li><b>Dice only.</b> Some devices can create the seed from your rolls alone, by running them through a standard hash function. This can be checked independently.</li>
+</ul>
+<div class="extra"><b>Going further: verify it yourself.</b> With a dice-only seed, write down your rolls, then on a separate computer that stays permanently offline, run the same rolls through an open-source seed tool or the manufacturer's published verification method (for example, Coldcard's <a href="https://coldcard.com/docs/verifying-dice-roll-math/" target="_blank" rel="noopener noreferrer">dice roll math guide</a>). If it produces the same words your device showed, the device didn't secretly swap in its own seed. Then destroy the roll sheet completely.</div>
+<div class="warn"><b>Rules:</b> use real dice, ideally casino-grade. Roll them yourself, in private. Enter every roll. Never choose words yourself, or use lyrics, quotes or a sentence you made up. Human choices are predictable.</div>`,
+ qs:[
+  {q:"Why add your own dice rolls instead of trusting the device's random number generator?",o:["Dice are faster","You can't see inside the device's generator, but you can trust your own dice","It's legally required","Devices can't make seeds without dice"],a:1,f:"If the device's randomness is weak or broken, enough of your own dice still protect you. Coldcard 2026 proved it."},
+  {q:"About how many six-sided dice rolls give a full 256 bits of randomness?",o:["24","50","99","500"],a:2,f:"256 bits divided by about 2.58 bits per roll comes to about 99 rolls."},
+  {q:"In the Coldcard case, what happened to seeds created before the fix after users updated their firmware?",o:["They were automatically repaired","They stayed weak and had to be replaced with new seeds","They were deleted","Their passphrase protected them"],a:1,f:"A firmware update can't change a seed that already exists. Weak seeds had to be moved to new ones."},
+  {q:"Is a seed phrase made from your favorite song lyrics secure?",o:["Yes, it's long","Yes, if nobody knows your favorite song","No: human-chosen words are predictable","Only if you add numbers"],a:2,f:"Attackers try known lyrics, quotes and phrases first. Only true randomness is safe."},
+  {q:"What's the advantage of a dice-only seed?",o:["It's quicker to make","It can be checked independently on a separate offline computer","It doesn't need a backup","It doesn't need a PIN"],a:1,f:"You don't have to trust the device's code. You can prove the seed came from your rolls."}
+ ]
+},
+{
+ t:"9. Setting Up the Device",
+ html:`
+<h2>Generic Hardware Wallet Setup</h2>
+<p>Every device is slightly different. Follow your manufacturer's official instructions, but every setup should cover these steps in this order.</p>
+<ol>
+<li><b>Buy direct from the manufacturer.</b> Not from marketplaces or third-party sellers. Ship to a non-home address if you can.</li>
+<li><b>Inspect it on arrival.</b> Check tamper seals and packaging. Anything opened, damaged, or containing a pre-printed seed: stop, don't use it, contact the manufacturer through their official website.</li>
+<li><b>Prepare the room</b> as in Module 7, before you power it on.</li>
+<li><b>Get the companion software only from the official source.</b> Type the address yourself or use a bookmark. Never from a search ad or email link.</li>
+<li><b>Verify the device and firmware.</b> Run the manufacturer's authenticity check. Update firmware only through the official app or verified files.</li>
+<li><b>Set a strong PIN.</b> Not a birthday or a pattern. Memorize it.</li>
+<li><b>Create a new seed with your own dice rolls</b> (Module 8). At least 50 rolls, 99 or more for 24 words.</li>
+<li><b>Write the seed down</b> on the card provided, in order, clearly. Check each word against the device screen.</li>
+<li><b>Confirm the backup on the device.</b> Most devices will quiz you on the words. Do it carefully.</li>
+<li><b>Move the seed to metal</b> (Module 9b below) and store it away from the device.</li>
+<li><b>Add a passphrase</b> if you choose to use one (Module 10). Back it up separately.</li>
+<li><b>Get a receive address and check it on the device screen.</b></li>
+<li><b>Send a small test amount first.</b></li>
+<li><b>Do a test restore.</b> Wipe the device, restore from your metal backup (and passphrase), and confirm the test funds appear. Only then move larger amounts.</li>
+</ol>
+<div class="why"><b>Why test a restore:</b> a bank tests its disaster recovery before a disaster. A backup you've never restored from is a guess. One wrong word written down means everything is lost the day you actually need it.</div>
+<h3 id="metal">9b. Storing the seed in metal</h3>
+<p>Paper burns, floods, fades and rots. A backup has to survive disasters, so it has to be metal.</p>
+<ul>
+<li><b>Corrosion resistant:</b> survives water, humidity and decades in storage. Use stainless steel, not plain steel that rusts.</li>
+<li><b>Force resistant:</b> survives being crushed or hit.</li>
+<li><b>Fire resistant:</b> stainless steel melts far above the temperatures of a typical house fire.</li>
+</ul>
+<p><b>The cheapest way: stainless steel washers and a bolt.</b> Buy stainless washers, a stainless bolt and nuts, and a metal letter punch set from a hardware store, with cash if you can. Stamp the first four letters of each word on a washer, along with its number in the order. In the standard word list, the first four letters identify every word uniquely. Stack them on the bolt and tighten the nuts.</p>
+<p><b>Recommended product: Cryptosteel.</b> If you'd rather buy a purpose-made backup, Cryptosteel is made of stainless steel, not titanium (the Capsule's shell is AISI 303 stainless), and is built to be corrosion, force and fire resistant. <b>This is not a paid recommendation</b> and there's no affiliate link. Whatever you buy, buy it directly and privately.</p>
+<ul>
+<li>Keep the metal backup in a different place from the hardware wallet.</li>
+<li>Keep the passphrase in a different place again.</li>
+<li>Don't label anything "Bitcoin."</li>
+<li>Destroy the paper copy once the metal one is verified by a test restore.</li>
+</ul>`,
+ qs:[
+  {q:"What should you do before moving a large amount onto your new wallet?",o:["Nothing, it's ready","Send a small test amount and do a full test restore from your backup","Post the address online to test it","Write the seed in a second notebook"],a:1,f:"Only a real restore proves the backup works."},
+  {q:"Where should you download the wallet's companion software from?",o:["The first search result","A link in an email","The official site, typed yourself or bookmarked","A friend's USB stick"],a:2,f:"Fake sites and ads are a common way to deliver malware and fake firmware."},
+  {q:"Why metal instead of paper for the seed backup?",o:["It looks better","It survives fire, water, corrosion and crushing","Paper is illegal","Metal is cheaper"],a:1,f:"A backup that burns in a house fire isn't a backup."},
+  {q:"When stamping seed words on washers, how many letters per word do you need?",o:["The first 2","The first 4","Every letter","Only the last letter"],a:1,f:"In the standard 2,048-word list, the first four letters are unique for every word."},
+  {q:"The device's tamper seal looks broken when it arrives. What do you do?",o:["Use it anyway","Stop, don't use it, and contact the manufacturer through their official site","Tape it closed","Set it up but only use it for small amounts"],a:1,f:"Treat signs of tampering as an attack. Never set up a device you can't trust."}
+ ]
+},
+{
+ t:"10. Passphrase Lab",
+ lab:true,
+ html:`
+<h2>The Passphrase</h2>
+<p>A passphrase (sometimes called the 25th word) is an extra secret added to your seed. Same seed plus a different passphrase creates a completely different wallet. If someone finds your metal backup, they still can't reach your funds without the passphrase.</p>
+<div class="why"><b>Why use one:</b> it's dual control, the same as a bank requiring two people to open the vault. The seed alone isn't enough. You can also keep a small decoy balance in the wallet with no passphrase. If someone forces you to hand over your seed, they find only the decoy.</div>
+<ul>
+<li>Store it separately from the seed, ideally also in metal.</li>
+<li>Lose it and the funds behind it are gone. There's no reset.</li>
+<li>It must be strong enough that an attacker who has your seed still can't guess it.</li>
+<li>It's case and space sensitive. One different character opens a different, empty wallet.</li>
+</ul>
+<div class="warn"><b>Test a similar passphrase, never your real one.</b> This page is offline and sends nothing, but the computer you're using could still be compromised. Type something with the same style and length as yours.</div>
+<h3>Strength checker</h3>
+<input type="password" id="pp" placeholder="Type a test passphrase" autocomplete="off" spellcheck="false">
+<label class="small"><input type="checkbox" id="show"> Show</label>
+<div class="meter"><div id="bar"></div></div>
+<div id="ppout" class="fb">Start typing to see an estimate.</div>
+<table id="pptable" style="display:none">
+<thead><tr><th>Attacker</th><th>Guesses per second</th><th>Average time to crack</th></tr></thead>
+<tbody id="pprows"></tbody>
+</table>
+<p class="small">Estimates assume the attacker already has your seed and is guessing passphrases. They're rough. Real attackers try dictionary words, names, dates and common patterns first, so the checker penalizes those. Guessing speeds are illustrative and assume a well-funded attacker with large amounts of hardware.</p>
+<h3>Making a strong one</h3>
+<p>The strongest passphrases are several words chosen at random with dice from a large word list, such as the EFF Diceware list of 7,776 words. Six random words give about 77 bits. Words you pick yourself, or a "clever" phrase, are far weaker than they look.</p>
+<p><b>Don't use BIP39 words for your passphrase.</b> Use a different list. If your passphrase is made of BIP39 words, it can be mistaken for part of your seed, by you, by your heirs or by an attacker who finds it. The BIP39 list is also smaller (2,048 words, about 11 bits per word against 12.9 for Diceware), so the same number of words is weaker.</p>`,
+ qs:[
+  {q:"Someone finds your metal seed backup, but your strong passphrase is stored elsewhere. What can they reach?",o:["All your funds","Half your funds","Only whatever is in the no-passphrase wallet","They can reset the passphrase"],a:2,f:"The passphrase creates a separate wallet. The seed alone opens only the wallet without it, which you can keep as a small decoy."},
+  {q:"What happens if you forget your passphrase?",o:["The manufacturer resets it","The funds behind it are gone","The PIN replaces it","It's recovered from the seed"],a:1,f:"There's no reset. Back it up as carefully as the seed, just somewhere else."},
+  {q:"Which passphrase is strongest?",o:["Bitcoin2024!","MyDogRex99","Six words chosen at random with dice","Your birthday plus your initials"],a:2,f:"Randomly chosen words beat patterns that look clever but are human-made."},
+  {q:"Why shouldn't your passphrase be made of BIP39 seed words?",o:["BIP39 words are banned in passphrases","It can be mistaken for part of the seed, and the smaller list makes each word weaker","Devices reject them","They're too long to type"],a:1,f:"Keep the passphrase clearly separate from the seed, and draw it from a bigger list."},
+  {q:"You type your passphrase with one letter in the wrong case. What happens?",o:["The device corrects it","You get an error","A different, empty wallet opens","Nothing, case doesn't matter"],a:2,f:"Every variation is a valid, separate wallet. That's why exact backups matter."}
+ ]
+},
+{
+ t:"11. Final Checklist",
+ final:true,
+ html:`
+<h2>Before You Move Real Funds</h2>
+<ul>
+<li>You understand you're your own bank, and no one can rescue you.</li>
+<li>Device bought direct, paid privately if possible, shipped to a non-home address if possible.</li>
+<li>Packaging inspected, authenticity check passed, firmware verified from the official source.</li>
+<li>No pre-printed seed. Seed created with at least 50 of your own dice rolls (99 or more for 24 words).</li>
+<li>Seed created in a room with no phone, no smart devices and the curtains closed.</li>
+<li>Seed never typed, photographed or stored digitally. Ever.</li>
+<li>Seed stamped in stainless steel, stored away from the device.</li>
+<li>Strong random passphrase, backed up separately from the seed.</li>
+<li>Small test transaction sent and a full test restore completed.</li>
+<li>Every receive address and every send checked on the device screen.</li>
+<li>No one knows what you hold.</li>
+<li>No legitimate person or company will ever ask for your seed phrase.</li>
+<li>An inheritance plan exists so someone you trust can recover the funds if something happens to you, without being able to take them while you're alive.</li>
+</ul>
+<div class="warn"><b>This is the start of OPSEC, not the end.</b> This lab covers the attack vectors known and understood today. It can't cover every one, and new attacks are discovered all the time, sometimes years after the flaw was created, as the Coldcard case showed. Keep learning, keep reviewing your setup, and repeat the OPSEC process whenever your situation or the threats change.</div>
+<div id="final"></div>`,
+ qs:[]
+}
+];
+
+// =====================================================================
+// STATE
+// =====================================================================
+let S={cur:0,ans:{}};
+try{const s=JSON.parse(localStorage.getItem('opseclab2')||'null'); if(s&&s.ans)S=s;}catch(e){}
+function save(){try{localStorage.setItem('opseclab2',JSON.stringify(S));}catch(e){}}
+
+const totalQ=M.reduce((n,m)=>n+m.qs.length,0);
+function stats(){let a=0,c=0;for(const k in S.ans){a++;if(S.ans[k].ok)c++;}return{a,c};}
+function modDone(i){return M[i].qs.length>0&&M[i].qs.every((_,j)=>S.ans[i+'-'+j]);}
+
+// Stable per-question shuffle so answer position gives nothing away
+function hash(str){let h=2166136261;for(let i=0;i<str.length;i++){h^=str.charCodeAt(i);h=Math.imul(h,16777619);}return h>>>0;}
+function order(key,n){return [...Array(n).keys()].sort((x,y)=>hash(key+'#'+x)-hash(key+'#'+y));}
+
+// =====================================================================
+// THEME
+// =====================================================================
+function setTheme(t){document.documentElement.setAttribute('data-theme',t);document.getElementById('theme').textContent=t==='dark'?'Light':'Dark';try{localStorage.setItem('opsectheme',t);}catch(e){}}
+(function(){let t='dark';try{t=localStorage.getItem('opsectheme')||(matchMedia('(prefers-color-scheme: light)').matches?'light':'dark');}catch(e){}setTheme(t);})();
+document.getElementById('theme').onclick=()=>setTheme(document.documentElement.getAttribute('data-theme')==='dark'?'light':'dark');
+
+// =====================================================================
+// RENDER
+// =====================================================================
+function go(i){S.cur=i;save();render();scrollTo(0,0);}
+function render(){
+  const nav=document.getElementById('nav');nav.innerHTML='';
+  M.forEach((m,i)=>{const b=document.createElement('button');b.textContent=m.t;if(i===S.cur)b.className='active';if(modDone(i))b.classList.add('done');b.onclick=()=>go(i);nav.appendChild(b);});
+  const st=stats();
+  document.getElementById('prog').textContent=`Answered ${st.a}/${totalQ} · Correct ${st.c}`;
+  const m=M[S.cur],main=document.getElementById('main');
+  let h=`<div class="panel">${m.html}</div>`;
+  if(m.qs.length){
+    h+=`<div class="panel"><h2>Check yourself</h2>`;
+    m.qs.forEach((q,j)=>{
+      const key=S.cur+'-'+j,r=S.ans[key];
+      h+=`<div class="q"><b>${j+1}. ${q.q}</b>`;
+      order(key,q.o.length).forEach(k=>{
+        let cls='opt';if(r){if(k===q.a)cls+=' right';else if(k===r.pick)cls+=' wrong';}
+        h+=`<button class="${cls}" ${r?'disabled':''} data-k="${key}" data-i="${k}">${q.o[k]}</button>`;
+      });
+      if(r)h+=`<div class="fb"><b style="color:var(${r.ok?'--good':'--bad'})">${r.ok?'Correct.':'Not quite.'}</b> ${q.f}</div>`;
+      h+='</div>';
+    });
+    h+='</div>';
+  }
+  h+=`<div class="row">
+    <button class="btn ghost" ${S.cur===0?'disabled':''} id="prev">&larr; Back</button>
+    <button class="btn ghost" id="reset">Reset lab</button>
+    ${S.cur<M.length-1?'<button class="btn" id="next">Next &rarr;</button>':'<span></span>'}
+  </div>`;
+  main.innerHTML=h;
+  main.querySelectorAll('.opt').forEach(b=>b.onclick=()=>{
+    const [mi,qi]=b.dataset.k.split('-').map(Number),pick=+b.dataset.i;
+    S.ans[b.dataset.k]={pick,ok:pick===M[mi].qs[qi].a};save();render();
+  });
+  const p=document.getElementById('prev');if(p)p.onclick=()=>{if(S.cur>0)go(S.cur-1);};
+  const n=document.getElementById('next');if(n)n.onclick=()=>go(S.cur+1);
+  document.getElementById('reset').onclick=()=>{if(confirm('Clear all answers?')){S={cur:0,ans:{}};save();render();}};
+  if(m.lab)initLab();
+  if(m.final)finalScore();
+}
+
+function finalScore(){
+  const st=stats(),pct=Math.round(st.c/totalQ*100);
+  const missed=[];M.forEach((m,i)=>m.qs.forEach((q,j)=>{const r=S.ans[i+'-'+j];if(!r||!r.ok)missed.push(m.t);}));
+  const uniq=[...new Set(missed)];
+  document.getElementById('final').innerHTML=`<div class="panel" style="margin-top:16px">
+    <div class="score" style="color:var(${pct>=80?'--good':pct>=60?'--warn':'--bad'})">${pct}%</div>
+    <p>${st.c} of ${totalQ} correct.${st.a<totalQ?` ${totalQ-st.a} still unanswered.`:''}</p>
+    ${uniq.length?`<p>Go back over: <b>${uniq.join(', ')}</b></p>`:'<p>Full marks. Now go through the checklist for real, one step at a time.</p>'}</div>`;
+}
+
+// =====================================================================
+// PASSPHRASE CHECKER (runs locally, nothing leaves the page)
+// =====================================================================
+const COMMON=["password","bitcoin","satoshi","nakamoto","crypto","wallet","letmein","qwerty","123456","admin","welcome","dragon","monkey","love","secret","money","hodl","moon","lambo","iloveyou","trust","master","football","baseball","shadow","sunshine","freedom","coldcard","trezor","ledger"];
+function estimate(p){
+  if(!p)return 0;
+  const lower=p.toLowerCase();
+  let pool=0;
+  if(/[a-z]/.test(p))pool+=26;if(/[A-Z]/.test(p))pool+=26;if(/[0-9]/.test(p))pool+=10;if(/[^a-zA-Z0-9]/.test(p))pool+=33;
+  let bits=p.length*Math.log2(pool||1);
+  const words=p.trim().split(/[\s\-_.]+/).filter(w=>w.length>=3);
+  if(words.length>=4&&/^[a-z\s\-_.]+$/i.test(p))bits=Math.min(bits,words.length*12.9); // Diceware-style: ~7,776-word list
+  COMMON.forEach(w=>{if(lower.includes(w))bits-=w.length*3.5;});
+  if(/(.)\1{2,}/.test(p))bits-=10;
+  if(/(19|20)\d{2}/.test(p))bits-=8;
+  if(/(0123|1234|2345|3456|4567|5678|6789|abcd|qwer|asdf)/i.test(lower))bits-=10;
+  if(/^[A-Z][a-z]+\d+[!@#$%]?$/.test(p))bits=Math.min(bits,30); // Word123! pattern
+  return Math.max(0,bits);
+}
+function fmt(sec){
+  if(sec<1)return "instantly";
+  const y=sec/31557600;
+  if(y>=1.4e10)return "longer than the age of the universe";
+  if(y>=1e9)return (y/1e9).toFixed(1).replace(/\.0$/,'')+" billion years";
+  if(y>=1e6)return (y/1e6).toFixed(1).replace(/\.0$/,'')+" million years";
+  const u=[["years",31557600],["days",86400],["hours",3600],["minutes",60],["seconds",1]];
+  for(const [n,s] of u)if(sec>=s)return Math.round(sec/s).toLocaleString()+" "+n;
+}
+function initLab(){
+  const i=document.getElementById('pp'),sh=document.getElementById('show');
+  sh.onchange=()=>i.type=sh.checked?'text':'password';
+  i.oninput=()=>{
+    const bits=estimate(i.value),out=document.getElementById('ppout'),bar=document.getElementById('bar'),tbl=document.getElementById('pptable');
+    if(!i.value){out.textContent='Start typing to see an estimate.';bar.style.width='0';tbl.style.display='none';return;}
+    let label,col;
+    if(bits<40){label='Weak: a determined attacker could crack this.';col='--bad';}
+    else if(bits<60){label='Fair: stops casual thieves, not well-funded attackers.';col='--warn';}
+    else if(bits<80){label='Strong: very expensive to brute force.';col='--good';}
+    else{label='Very strong: out of reach of brute force with known technology.';col='--good';}
+    bar.style.width=Math.min(100,bits)+'%';bar.style.background=`var(${col})`;
+    out.innerHTML=`<b style="color:var(${col})">${label}</b> Estimated strength: about ${Math.round(bits)} bits.`;
+    const rates=[["Thief with a laptop",1e4,"10 thousand"],["Organized criminals with a GPU rig",1e7,"10 million"],["Nation-state",1e12,"1 trillion"]];
+    const half=Math.pow(2,bits)/2;
+    document.getElementById('pprows').innerHTML=rates.map(([n,r,lbl])=>`<tr><td>${n}</td><td>${lbl}</td><td>${fmt(half/r)}</td></tr>`).join('');
+    tbl.style.display='table';
+  };
+}
+
+render();
+</script>
+</body>
+</html>
